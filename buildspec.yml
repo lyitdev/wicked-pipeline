@@ -37,7 +37,6 @@ post_build:
 
 artifacts:
   files: 
-    - 'image*.json'
     ImageArtifact:
       files:
         - imagedefinitions.json
