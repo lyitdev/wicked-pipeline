@@ -7,6 +7,7 @@ env:
     AWS_ACCOUNT_ID: 938474817018
     AWS_ACCESS_KEY_ID: AKIA5VALVIX5CNPSUUWW
     AWS_SECRET_ACCESS_KEY: 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
+    REPOSITORY_URI: 938474817018.dkr.ecr.eu-west-1.amazonaws.com/wickedpark
 
 phases:
   pre_build:
@@ -14,7 +15,6 @@ phases:
       - echo Logging in to Amazon ECR...
       - aws --version
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-      - REPOSITORY_URI=938474817018.dkr.ecr.eu-west-1.amazonaws.com/wickedpark
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
 build:
@@ -29,8 +29,10 @@ post_build:
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
-      - printf '[{"name":"wickedpark","imageUri":"%s"}]'    $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - printf '[{"name":"wickedpark","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
       - cat imagedefinitions.json
 artifacts:
-  files: imagedefinitions.json
+  files: 
+    - imagedefinitions.json
