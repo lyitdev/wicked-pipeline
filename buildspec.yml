@@ -1,33 +1,32 @@
-# Don't change this version, this version is buildspec.yml file's version
-version: 0.2
+# AWS CodeBuild buildspec.yml to build user-interface-service Docker Image
 
+# Set the following variables as CodeBuild Project Environment Variables
+# ECR_REPOSITORY_URI
+
+version: 0.2
 phases:
   pre_build:
     commands:
+      - echo Fetching ECR Login
+      - ECR_LOGIN=$(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
       - echo Logging in to Amazon ECR...
-      - aws --version
-      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
-      - printf '[{"name":"wickedpark","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > ./imagedefinitions.json
-      - cat ./imagedefinitions.json
+      - $ECR_LOGIN
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+  build:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -t $REPOSITORY_URI:latest .
-      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
-      - printf '[{"name":"wickedpark","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > ./imagedefinitions.json
-      - cat ./imagedefinitions.json
+      - docker build -t $ECR_REPOSITORY_URI:latest .
+      - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
   post_build:
     commands:
+      - bash -c "if [ /"$CODEBUILD_BUILD_SUCCEEDING/" == /"0/" ]; then exit 1; fi"
       - echo Build completed on `date`
       - echo Pushing the Docker images...
-      - docker push $REPOSITORY_URI:latest
-      - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - echo "$REPOSITORY_URI:$IMAGE_TAG"
-      - echo "Writing image definitions file..."
-      - printf '[{"name":"wickedpark","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > ./imagedefinitions.json
-      - cat ./imagedefinitions.json
-  artifacts:
-    files: 
-      - imagedefinitions.json
+      - docker push $ECR_REPOSITORY_URI:latest
+      - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      # name -> container name in the Service's Task Definition
+      - printf '[{"name":"user-interface-service-container","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+  files: imagedefinitions.json
